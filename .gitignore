@@ -1,0 +1,10 @@
+# Ignore documents
+docs/
+rawdocs/
+
+# Ignore Python cache
+__pycache__/
+*.pyc
+
+# Ignore environment file
+.env 

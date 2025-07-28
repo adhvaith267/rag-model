@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>DocAssist</title>
+    <style>
+        body {
+            max-width: 100%;
+            font-family: Verdana;
+	    font-size: 14px;
+            background-color: #d9e2db;
+            /*display: flex;*/
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: auto;
+            padding: 0;
+        }
+
+        .chat-container {
+            width: 1000px;
+            max-width: 100%;
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            height: 85vh;
+            margin: auto;
+        }
+
+        .chat-box {
+            flex-grow: 1;
+            padding: 20px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .message {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 10px;
+            max-width: 70%;
+            word-wrap: break-word;
+        }
+
+        .user-message {
+            align-self: flex-end;
+            background-color: #e1ffc7;
+        }
+
+        .bot-message {
+            align-self: flex-start;
+            background-color: #f1f1f1;
+        }
+
+  	p {
+	    line-height: 1.5;
+	    margin: 0;
+	}
+
+        .input-container {
+            display: flex;
+            padding: 10px;
+            background-color: #fafafa;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+            font-size: 16px;
+        }
+
+        button {
+            padding: 10px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            margin-left: 10px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        .loading {
+            color: #aaa;
+            font-style: italic;
+            padding: 10px;
+            text-align: center;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="header">
+        <h1>RAG Model</h1>
+    </div>
+
+    <div class="main-container">
+        <div class="left-panel">
+            <h2>Indexed Documents</h2>
+            <div class="documents-list">
+                {% for doc in selected_documents %}
+                    <div class="document-item">{{ doc }}</div>
+                {% endfor %}
+            </div>
+            <p class="footer-text">This is an AI-powered search engine. Results may not always be accurate.</p>
+        </div>
+        <div class="right-panel">
+            <div class="chat-container">
+                <div id="chat-box">
+                    <div class="message bot-message">
+                        <p>Welcome! Ask a question about the indexed documents.</p>
+                    </div>
+                </div>
+                <div class="chat-input">
+                    <input type="text" id="user-input" placeholder="Type your question here...">
+                    <button id="send-btn">Send</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const chatBox = document.getElementById('chatBox');
+        const loadingText = document.getElementById('loadingText');
+        const questionInput = document.getElementById('questionInput');
+        const sendBtn = document.getElementById('sendBtn');
+
+        function checkEnter(event) {
+            if (event.key === 'Enter') {
+                event.preventDefault();  // Prevent form submission
+                askQuestion();  // Call the ask function when Enter is pressed
+            }
+        }
+
+        function askQuestion() {
+            const question = questionInput.value.trim();
+            if (question === "") return; // Don't send empty questions
+
+            // Show user's message in the chat
+            addMessage(question, 'user');
+
+            // Clear input field after sending
+            questionInput.value = '';
+	    questionInput.disabled = true;
+	    sendBtn.disabled = true;
+	    
+            // Show loading indicator
+            loadingText.style.display = 'block';
+
+            // Call backend to get the answer
+            fetch('http://10.5.20.202:5000/ask', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ question })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    // Hide loading text and show the answer
+                    loadingText.style.display = 'none';
+                    addMessage(data.response, 'bot');
+	    	    questionInput.disabled = false;
+	    	    sendBtn.disabled = false;
+                })
+                .catch(error => {
+                    loadingText.style.display = 'none';
+                    addMessage("An error occurred. Please try again.", 'bot');
+                    console.error('Error:', error);
+	    	    questionInput.disabled = false;
+	    	    sendBtn.disabled = false;
+                });
+        }
+
+        function addMessage(message, sender) {
+            const messageElement = document.createElement('div');
+            messageElement.classList.add('message');
+            messageElement.classList.add(sender === 'user' ? 'user-message' : 'bot-message');
+            messageElement.innerHTML = message;
+            chatBox.appendChild(messageElement);
+            chatBox.scrollTop = chatBox.scrollHeight; 
+        }
+    </script>
+</body>
+
+</html>
