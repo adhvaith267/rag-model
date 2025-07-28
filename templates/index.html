@@ -100,32 +100,27 @@
 </head>
 
 <body>
-    <div class="header">
-        <h1>RAG Model</h1>
-    </div>
-
-    <div class="main-container">
-        <div class="left-panel">
-            <h2>Indexed Documents</h2>
-            <div class="documents-list">
-                {% for doc in selected_documents %}
-                    <div class="document-item">{{ doc }}</div>
-                {% endfor %}
-            </div>
-            <p class="footer-text">This is an AI-powered search engine. Results may not always be accurate.</p>
-        </div>
-        <div class="right-panel">
-            <div class="chat-container">
-                <div id="chat-box">
-                    <div class="message bot-message">
-                        <p>Welcome! Ask a question about the indexed documents.</p>
-                    </div>
-                </div>
-                <div class="chat-input">
-                    <input type="text" id="user-input" placeholder="Type your question here...">
-                    <button id="send-btn">Send</button>
-                </div>
-            </div>
+    <center>
+	<h3 style=" padding:12px; margin-top:0; margin-bottom:0; color:white; display: flex; gap: 12px; text-align: center; width: fit-content;">
+	    <!-- <img src="{{ url_for('static', filename='images/BHEL_logo.png')}}" width="50" height="40" alt="BHEL Logo" style="flex-shrink: 0;" /> -->
+	    <span style="color: #334498;">
+	        Bharat Heavy Electricals Limited - HPEP<br>
+	        Ramachandrapuram, Hyderabad - 502032<br>
+	        Human Resource Management
+	    </span>
+	</h3>
+        <!-- <h3 style="padding:12px; margin-top:0; margin-bottom:0;">Artificial Intelligence System </h3> -->
+        <!--<p style="padding: 10px; margin-top:2px; margin-bottom:2px; width:800px; max-width: 100%; ">
+	Available documents : {% for doc in selected_documents %} <span style="border: 1px solid gray; border-radius: 3px; padding: 8px; margin: 2px;">{{doc}}</span> {% endfor %}
+        </p>-->
+    </center>
+    <div class="chat-container">
+        <div class="chat-box" id="chatBox">
+	</div>
+	<div class="loading" id="loadingText" style="display: none;">Generating...</div>
+        <div class="input-container">
+            <input type="text" id="questionInput" placeholder="Enter your question..." onkeydown="checkEnter(event)">
+	    <button id="sendBtn" onclick="askQuestion()" style="display: none;">Send</button>
         </div>
     </div>
 
