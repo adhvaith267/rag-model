@@ -1,6 +1,8 @@
 # Ignore documents
-docs/
-rawdocs/
+docs/*
+!docs/.gitkeep
+rawdocs/*
+!rawdocs/.gitkeep
 
 # Ignore Python cache
 __pycache__/
