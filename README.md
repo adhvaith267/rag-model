@@ -76,4 +76,4 @@ The application follows a standard RAG architecture:
 
 ## Privacy
 
-To protect privacy, the `docs/` and `rawdocs/` directories, which may contain sensitive enterprise data, are included in the `.gitignore` file. This prevents an accidental `git commit` from exposing this information. 
+To protect privacy, the `docs/` and `rawdocs/` directories, which may contain sensitive enterprise data, are included in the `.gitignore` file.
