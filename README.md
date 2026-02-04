@@ -19,24 +19,6 @@ The application follows a standard RAG architecture:
 4.  **Information Retrieval**: The system searches the vector store for document chunks that are most relevant to the user's query.
 5.  **Answer Generation**: The retrieved text chunks (context) and the original user question are passed to a large language model, which then generates a coherent answer.
 
-## Project Structure
-
-```
-/
-|-- app.py                  # Main Flask application
-|-- rag.py                  # Core RAG logic
-|-- models.py               # Model definitions (e.g., embeddings)
-|-- extract_docs_from_pdf.py # Script to process PDFs
-|-- select_docs.py          # Script to select documents for processing
-|-- requirements.txt        # Python dependencies
-|-- .gitignore              # Files and directories to be ignored by Git
-|-- docs/                   # Directory for processed documents (add your PDFs here)
-|-- rawdocs/                # Directory for raw documents
-|-- templates/
-|   |-- index.html          # Web interface
-|-- static/
-    |-- ...
-```
 
 ## Setup and Installation
 
