@@ -1,11 +1,12 @@
 <div align="center">
 
-# LLM - A RAG Model for Enterprise Data
+# DocuRAG — Enterprise RAG Engine with Local LLMs
 
-A Retrieval-Augmented Generation (RAG) system that answers natural language questions using your own enterprise documents.
+A fully local, privacy-preserving Retrieval-Augmented Generation (RAG) system for querying enterprise PDF documents using quantized open-source LLMs — no external API calls, no data leaving your infrastructure.
 
 [![Python](https://img.shields.io/badge/Python-3.8%2B-blue.svg)](https://www.python.org/)
-[![Flask](https://img.shields.io/badge/Flask-2.x-black.svg)](https://flask.palletsprojects.com/)
+[![LangChain](https://img.shields.io/badge/Framework-LangChain-1C3C3C.svg)](https://www.langchain.com/)
+[![llama.cpp](https://img.shields.io/badge/Inference-llama.cpp-000000.svg)](https://github.com/ggerganov/llama.cpp)
 [![FAISS](https://img.shields.io/badge/Vector%20Store-FAISS-005571.svg)](https://github.com/facebookresearch/faiss)
 
 </div>
@@ -15,51 +16,85 @@ A Retrieval-Augmented Generation (RAG) system that answers natural language ques
 ## Table of Contents
 
 - [Overview](#overview)
-- [Features](#features)
-- [How It Works](#how-it-works)
+- [Key Features](#key-features)
+- [Architecture](#architecture)
+- [Supported Models](#supported-models)
 - [Tech Stack](#tech-stack)
 - [Prerequisites](#prerequisites)
 - [Installation](#installation)
+- [Configuration](#configuration)
 - [Usage](#usage)
 - [Project Structure](#project-structure)
-- [Contributing](#contributing)
-- [License](#license)
 
 ## Overview
 
-This project implements a Retrieval-Augmented Generation (RAG) pipeline designed to work with enterprise data. It allows users to ask questions in natural language and receive answers grounded in a given set of documents. The system uses a large language model (LLM) to understand user queries and retrieve relevant information from a vectorized knowledge base.
+DocuRAG is a Retrieval-Augmented Generation pipeline built to run entirely on local infrastructure. It ingests enterprise PDF documents — including both free text and tabular data — chunks and embeds them, and serves natural language answers using quantized GGUF language models run through `llama.cpp`. Because inference, embeddings, and vector search all run locally, no document content or query ever leaves the host machine, making it suitable for confidential or regulated enterprise data.
 
-## Features
+## Key Features
 
-- **Document Processing** — Extracts text from PDF documents and stores it in a searchable vector database
-- **Natural Language Queries** — Ask questions in plain English
-- **Contextual Answers** — Answers are generated using the actual content of the provided documents
-- **Web Interface** — A simple UI for interacting with the model
+- **Local-Only Inference** — Runs quantized GGUF models via `llama-cpp-python`; no external LLM API required
+- **Selectable Model Backend** — Swap between multiple pre-configured Mistral, Mixtral, and lightweight models at runtime via an interactive CLI menu
+- **Dual-Layer Chunking (Parent/Child Retrieval)** — Uses LangChain's `ParentDocumentRetriever` to embed small, precise child chunks for retrieval while returning larger parent chunks for richer context
+- **Table-Aware PDF Extraction** — Extracts both narrative text (via PyMuPDF) and structured tables (via `img2table` + BeautifulSoup) from source PDFs, preserving table structure as JSON
+- **Local Embeddings** — Uses a locally-hosted `all-MiniLM-L6-v2` sentence-transformer model for vector embeddings, avoiding external embedding API calls
+- **FAISS Vector Store** — Efficient similarity search over embedded document chunks
+- **CLI and Web Interfaces** — Query documents through either a command-line interface (`rag_cli.py`) or a web UI (`app.py`)
+- **Selective Document Ingestion** — Choose which documents in `docs/` to index via `select_docs.py`
 
-## How It Works
+## Architecture
 
-The application follows a standard RAG architecture:
+The system follows a two-stage retrieval architecture rather than naive single-chunk RAG:
 
-1. **Data Ingestion** — PDF documents placed in the `docs/` directory are processed. Text is extracted, split into chunks, and converted into vector embeddings.
-2. **Vector Store** — These embeddings are stored in a FAISS vector database, enabling efficient similarity search.
-3. **User Query** — When a user asks a question, the query is converted into a vector embedding.
-4. **Information Retrieval** — The system searches the vector store for document chunks most relevant to the query.
-5. **Answer Generation** — The retrieved context and the original question are passed to an LLM, which generates a coherent, grounded answer.
+1. **Document Extraction**
+   `extract_docs_from_pdf.py` processes each source PDF twice: once to pull plain text page-by-page using PyMuPDF (`fitz`), and once to detect and extract tables using `img2table`, converting each table into structured JSON via BeautifulSoup-based HTML parsing.
+
+2. **Parent/Child Splitting**
+   Extracted text is wrapped into LangChain `Document` objects ("parent" documents). A `RecursiveCharacterTextSplitter` then derives smaller "child" chunks (500 chars, 30 overlap) from each parent (2000 chars, 1000 overlap), with each child chunk tagged with its parent's ID in metadata.
+
+3. **Embedding and Indexing**
+   Parent documents are embedded using a local `HuggingFaceEmbeddings` model and indexed in a FAISS vector store. Parent documents are also cached in an `InMemoryStore` docstore, keyed by parent ID.
+
+4. **Retrieval**
+   A `ParentDocumentRetriever` performs similarity search over the child-chunk embedding space, then resolves matches back to their full parent document — balancing retrieval precision (small chunks) with generation context quality (larger, coherent chunks).
+
+5. **Answer Generation**
+   The retrieved parent context and user query are passed to a locally-running GGUF model via `llama-cpp-python`, which streams back a generated answer.
+
+## Supported Models
+
+Model selection is configurable via `models.py`, which maintains an indexed registry of local GGUF checkpoints. At runtime, `select_model()` either accepts a model index directly or presents an interactive menu:
+
+| Family        | Example Variants                                                    |
+|---------------|------------------------------------------------------------------------|
+| Mistral 7B    | Instruct v0.2 (Q6_K), Instruct v0.3 (Q4_1, Q8_0, F16), Code 16K QLoRA (Q8_0) |
+| Mistral Nemo  | Instruct 2407 (Q4_K_M)                                                |
+| Mistral Small | 24B Instruct 2501 (BF16, Q8_0, Q4_K_M)                                |
+| Mixtral 8x7B  | Instruct v0.1 (Q8_0), Base v0.1 (Q4_K_M)                              |
+| Lightweight   | Phi-2 (Q4_K_M), TinyLlama 1.1B Chat (Q5_K_M)                          |
+
+Models are swapped without code changes by editing the model index passed to `select_model()`, making it straightforward to trade off inference speed against answer quality depending on available hardware.
 
 ## Tech Stack
 
-| Layer          | Technology              |
-|----------------|---------------------------|
-| Backend        | Python, Flask            |
-| LLM / Embeddings | Large Language Model (LLM) |
-| Vector Store   | FAISS                    |
-| Document Parsing | PDF text extraction     |
-| Frontend       | HTML / Web UI            |
+| Layer                | Technology                                              |
+|----------------------|------------------------------------------------------------|
+| LLM Inference        | `llama-cpp-python` (GGUF quantized models)               |
+| Orchestration        | LangChain (`langchain-community`, `langchain-text-splitters`) |
+| Retrieval            | `ParentDocumentRetriever`, `InMemoryStore`                |
+| Vector Store         | FAISS                                                     |
+| Embeddings           | HuggingFace `sentence-transformers` (`all-MiniLM-L6-v2`) |
+| PDF Text Extraction  | PyMuPDF (`fitz`)                                          |
+| PDF Table Extraction | `img2table`, BeautifulSoup                                |
+| Backend              | Python, Flask                                             |
+| Frontend             | HTML templates, static assets                             |
 
 ## Prerequisites
 
 - Python 3.8 or higher
-- pip (Python package manager)
+- `pip` for package management
+- Local GGUF model file(s) downloaded and placed under `/models/` (paths configured in `models.py`)
+- A local copy of the `all-MiniLM-L6-v2` embedding model under `/models/all-MiniLM-L6-v2`
+- Sufficient RAM/VRAM for your chosen quantized model (lightweight options like TinyLlama or Phi-2 are recommended for constrained hardware)
 
 ## Installation
 
@@ -85,17 +120,38 @@ pip install -r requirements.txt
 
 ### 4. Add your documents
 
-Place the PDF files you want to query into the `docs/` directory.
+Place the source PDF files into `rawdocs/`, and use `select_docs.py` to choose which ones get processed into `docs/` for indexing.
+
+### 5. Configure model paths
+
+Update the `path` values in `models.py` to point to your local GGUF model files, and set the embedding model path in `rag.py` if it differs from `/models/all-MiniLM-L6-v2`.
+
+## Configuration
+
+| File                     | Purpose                                                        |
+|--------------------------|---------------------------------------------------------------|
+| `models.py`              | Registry of available GGUF models and interactive selector    |
+| `select_docs.py`         | Chooses which documents from `rawdocs/` are indexed           |
+| `extract_docs_from_pdf.py` | Text and table extraction logic for source PDFs              |
+| `rag.py`                 | Core RAG pipeline: chunking, embedding, indexing, retrieval    |
+| `rag_cli.py`             | Command-line interface for querying the RAG pipeline          |
+| `app.py`                 | Web application entry point                                   |
 
 ## Usage
 
-### 1. Start the application
+### Command-line interface
+
+```bash
+python rag_cli.py
+```
+
+Select a model from the interactive menu (or hardcode an index via `select_model(index)`), then ask questions about the indexed documents directly from the terminal.
+
+### Web interface
 
 ```bash
 python app.py
 ```
-
-### 2. Access the web interface
 
 Open your browser and navigate to:
 
@@ -103,39 +159,30 @@ Open your browser and navigate to:
 http://127.0.0.1:5000
 ```
 
-### 3. Ask questions
-
-Use the input box to ask questions about the documents you provided. The model will retrieve relevant context and generate an answer based on your documents.
+Use the input box to ask natural language questions; answers are generated using retrieved document context and the selected local LLM.
 
 ## Project Structure
 
 ```
 rag-model/
-├── docs/                 # Source PDF documents to be indexed
-├── templates/            # Web UI templates
-├── app.py                # Application entry point
-├── requirements.txt      # Python dependencies
-└── README.md             # Project documentation
+├── docs/                       # Processed/selected documents ready for indexing
+├── rawdocs/                    # Raw source PDF documents
+├── static/
+│   └── images/                 # Static assets for the web UI
+├── templates/                  # Web UI HTML templates
+├── .gitignore
+├── app.py                      # Flask web application entry point
+├── extract_docs_from_pdf.py    # PDF text and table extraction
+├── models.py                   # GGUF model registry and selector
+├── rag.py                      # Core RAG pipeline (chunking, embedding, retrieval, generation)
+├── rag_cli.py                  # CLI for querying the RAG pipeline
+├── select_docs.py              # Document selection utility
+├── requirements.txt            # Python dependencies
+└── README.md                   # Project documentation
 ```
 
-> Note: Update this section if your actual folder layout differs (e.g. separate modules for ingestion, embeddings, or the vector store).
 
-## Contributing
-
-Contributions are welcome. To contribute:
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/your-feature`)
-3. Commit your changes (`git commit -m 'Add some feature'`)
-4. Push to the branch (`git push origin feature/your-feature`)
-5. Open a Pull Request
-
-## License
-
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
-
----
 
 <div align="center">
-Built with Flask, FAISS, and LLMs
+Built with LangChain, llama.cpp, and FAISS
 </div>
