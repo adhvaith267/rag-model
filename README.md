@@ -101,8 +101,8 @@ Models are swapped without code changes by editing the model index passed to `se
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/adhvaith267/rag-model.git
-cd rag-model
+git clone https://github.com/adhvaith267/DocuRAG.git
+cd DocuRAG
 ```
 
 ### 2. Create and activate a virtual environment (recommended)
