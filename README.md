@@ -213,7 +213,8 @@ rag-model/
 ├── rawdocs/                    # Raw/unprocessed source PDF documents
 ├── static/
 │   └── images/                 # Static assets for the web UI
-├── templates/                  # Web UI HTML templates
+├── templates/                 
+│   └── index.html              # Web UI HTML templates
 ├── .gitignore
 ├── app.py                      # Flask web application entry point
 ├── extract_docs_from_pdf.py    # PDF text and table extraction
