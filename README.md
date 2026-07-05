@@ -55,7 +55,3 @@ The application follows a standard RAG architecture:
 
 3.  **Ask questions:**
     Use the input box to ask questions about the documents you provided.
-
-## Privacy
-
-To protect privacy, the `docs/` and `rawdocs/` directories, which may contain sensitive enterprise data, are included in the `.gitignore` file.
